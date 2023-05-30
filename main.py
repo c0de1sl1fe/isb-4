@@ -32,7 +32,9 @@ class Window(QWidget):
             "pathOfDataToSave": "Empty",
             "symmKey": 0,
             "publicKey": 0,
-            "privateKey": 0
+            "privateKey": 0,
+            "bins": [477932, 427714, 431417, 458450, 475791, 477714, 477964, 479087, 419540, 426101, 428905,
+                     428906, 458411, 458443, 415482]
         }
         self.setWindowTitle('Lab4')
         self.setWindowIcon(QIcon('6112_Logo_git_prefinal.jpg'))
@@ -71,11 +73,10 @@ class Window(QWidget):
         return generalTab
 
     def __card_number(self) -> QWidget:
-        """create tab with buttons to get pathes and solve creating and saving keys"""
+        """card number tab with information about card and some functions"""
         generalTab = QWidget()
         layout = QVBoxLayout()
         first = QVBoxLayout()
-        # first.setContentsMargins(10, 10, 10, 200)
         second = QHBoxLayout()
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
@@ -84,17 +85,17 @@ class Window(QWidget):
 
         binlayout1 = QVBoxLayout()
         binlayout2 = QVBoxLayout()
-        
-        binlayout2.setContentsMargins(10,10,10,100)
-        binlayout1.setContentsMargins(10,10,10,100)
-
         binlayout = QHBoxLayout()
-        array = [477932, 427714, 431417, 458450, 475791, 477714, 477964, 479087, 419540, 426101, 428905,
-         428906, 458411, 458443, 415482]
-        for i in range(0, int(len(array)/2)):
-            binlayout1.addWidget(QLabel(f"{i + 1}. {array[i]}\n"))
-        for i in range(int(len(array)/2), len(array)):
-            binlayout2.addWidget(QLabel(f"{i + 1}. {array[i]}\n"))
+        binlayout1.setSpacing(0)
+        binlayout.setSpacing(0)
+        binlayout.setContentsMargins(10, 10, 10, 100)
+
+        for i in range(0, int(len(self.settings['bins'])/2)):
+            binlayout1.addWidget(
+                QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
+        for i in int(len(self.settings['bins'])/2, len(self.settings['bins'])):
+            binlayout2.addWidget(
+                QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
         binlayout.addLayout(binlayout1)
         binlayout.addLayout(binlayout2)
         button11 = QPushButton("Path for encrypted key")
@@ -104,7 +105,7 @@ class Window(QWidget):
         line1.addWidget(line11)
         # button11.clicked.connect(
         #     partial(self.__input_path, self.settings, "pathOfEncryptedSymmKeyToSave", line11))
-    
+
         first.addLayout(binlayout)
         first.addLayout(line1)
         layout.addLayout(first)
