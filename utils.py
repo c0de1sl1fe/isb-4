@@ -1,3 +1,7 @@
+import hashlib
+import multiprocessing as mp
+
+
 def algorithm_luhn(card_num: str) -> bool:
     """the function implements the moon algorithm, which checks 
     the validity of the card number"""
@@ -8,8 +12,6 @@ def algorithm_luhn(card_num: str) -> bool:
             number_card_reverse[i] = number_card_reverse[i] % 10 + \
                 number_card_reverse[i] // 10
     return sum(number_card_reverse) % 10 == 0
-import hashlib
-import multiprocessing as mp
 
 
 def check_num_card(default_hash: str, bin: int, main_part_card: list, last_num: str) -> bool:

@@ -9,8 +9,10 @@ from PyQt5.QtGui import QIcon,  QFont, QKeySequence
 import multiprocessing as mp
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-
+import json
+import logging
 from utils import find_num_card, algorithm_luhn
+
 
 class MplCanvas(FigureCanvasQTAgg):
 
@@ -31,22 +33,7 @@ class Window(QWidget):
         self.shortcut_exit = QShortcut(QKeySequence('esc'), self)
         self.shortcut_exit.activated.connect(qApp.quit)
         self.settings = {
-            "pathOfEncryptedSymmKeyToSave": "Empty",
-            "pathOfPublicKeyToSave": "Empty",
-            "pathOfPrivateKeyToSave": "Empty",
-            "pathOfDataToGet": "Empty",
-            "pathOfPrivateKeyToGet1": "Empty",
-            "pathOfEnctyptedSymmKeyToGet1": "Empty",
-            "pathOfEncryptedDataToSave": "Empty",
-            "pathOfEncryptedDataToGet": "Empty",
-            "pathOfPrivateKeyToGet2": "Empty",
-            "pathOfEnctyptedSymmKeyToGet2": "Empty",
-            "pathOfDataToSave": "Empty",
-            "symmKey": 0,
-            "publicKey": 0,
-            "privateKey": 0,
-
-
+            "isOld": True,
             "pathToFolder": "Empty",
             "lastNum": "7819",
             "cardNum": 0,
@@ -67,7 +54,6 @@ class Window(QWidget):
         tabs.addTab(self.__general_tab(), "general")
         tabs.addTab(self.__card_number(), "Card number tab")
         tabs.addTab(self.__additional(), "Additional functions tab")
-        # tabs.addTab(self.__decryption_tab(), "DecryptionTab")
         layout.addWidget(tabs)
         self.setGeometry(400, 400, 450, 400)
         qr = self.frameGeometry()
@@ -88,6 +74,9 @@ class Window(QWidget):
         line2 = QLabel('''At CardNumber you can word with
                         \nAt additional tab you can:\n - 1: Create histogram\n - 2: Check your card number with Lunh's algorithm''')
         line2.setFont(custom_font)
+        buttonToSaveSettings = QPushButton("SaveSettings")
+        buttonToSaveSettings.clicked.connect()
+
         text.addWidget(line1)
         text.addWidget(line2)
         layout.addLayout(text)
@@ -128,12 +117,14 @@ class Window(QWidget):
         first.addLayout(binlayout)
         first.addWidget(
             QLabel(f"Last numbers of card: {self.settings['lastNum']}"))
+        cardNumLable = QLabel("")
+        first.addWidget(cardNumLable)
         first.addLayout(layoutPath)
 
         buttonCalculate = QPushButton("Calculate")
         buttonCalculate.setStyleSheet("background-color: red")
         buttonCalculate.clicked.connect(
-            partial(self.calculate_num_card, buttonCalculate))
+            partial(self.calculate_num_card, cardNumLable, buttonCalculate))
         second.addWidget(buttonCalculate)
         second.addWidget(self.pbar)
         layout.addLayout(first)
@@ -194,10 +185,9 @@ class Window(QWidget):
             lable.setText(settings[key])
             lable.setStyleSheet("border: 3px solid green;")
 
-    def calculate_num_card(self, button: QPushButton):
+    def calculate_num_card(self, lable: QLabel, button: QPushButton):
         """the method launches a function to find 
         the card number for different pools"""
-        # if (self.settings['pathToFolder'] != 'Empty' and self.settings['cardNum'] == 0) or (self.settings['pathToFolder'] != '' and self.settings['cardNum'] == 0):
         if (not (self.settings['pathToFolder'] == 'Empty' or self.settings['pathToFolder'] == '') and self.settings['cardNum'] == 0):
             pools = mp.cpu_count()
             result = 0
@@ -211,9 +201,8 @@ class Window(QWidget):
                     self.settings['lastNum'], pools)
                 final_time = time.time() - start_time
                 self.settings['stats'][i] = final_time
-            self.settings['card_num'] = result
-            # for i in range(0, 101):
-            #     time.sleep(0.01)
+            self.settings['cardNum'] = result
+            lable.setText(str(self.settings['cardNum']))
             button.setStyleSheet("background-color: green;")
             return
         elif self.settings['pathToFolder'] == 'Empty' or self.settings['pathToFolder'] == '':
@@ -225,30 +214,41 @@ class Window(QWidget):
                 self, "Error", "You have already done calculation", QMessageBox.Ok)
             return
 
-
     def create_graph(self, button: QPushButton):
         """the method create the histogram"""
         if (self.settings['stats']):
 
             self.graph.axes.cla()
-            self.graph.axes.bar(self.settings['stats'].keys(), self.settings['stats'].values())
+            self.graph.axes.bar(
+                self.settings['stats'].keys(), self.settings['stats'].values())
             button.setStyleSheet("background-color: green;")
             self.graph.draw()
         else:
             QMessageBox.critical(
                 self, "Error", "Please finish previous step", QMessageBox.Ok)
 
-
     def card_num_verification(self, lable: QLabel, button: QPushButton):
         """the method calls the function of the luhn algorithm"""
-        if(self.settings['cardNum']):
+        if (self.settings['cardNum']):
             result_algorithm = algorithm_luhn(str(self.settings["cardNum"]))
             lable.setText(f"Algorithm Luhn return - {result_algorithm}")
             button.setStyleSheet("background-color: green;")
         else:
             QMessageBox.critical(
                 self, "Error", "Please finish previous step", QMessageBox.Ok)
+
+    def __settings(self, button: QPushButton):
+        if(self.settings['isOld']):
+            button.setText("saveSettings")
+            try:
+                with open('settings.json', 'r') as f:
+                    self.settings = json.load(f)
+                self.settings['isOld'] = True
+            except Exception as e:
+                logging.error(
+            f"an error occurred when reading data to 'settings.json' file: {str(e)}")
             
+        if()
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = Window()
