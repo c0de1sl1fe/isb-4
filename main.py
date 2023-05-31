@@ -1,11 +1,23 @@
 import sys
 from functools import partial
-
+import time
 from PyQt5.QtWidgets import (QFrame, QShortcut, QWidget, QLabel,  QPushButton,
                              QApplication, QHBoxLayout,
                              QFileDialog, qApp, QDesktopWidget, QMessageBox,
-                             QTabWidget, QVBoxLayout)
+                             QTabWidget, QVBoxLayout, QProgressBar)
 from PyQt5.QtGui import QIcon,  QFont, QKeySequence
+import multiprocessing as mp
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+
+from utils import find_num_card, algorithm_luhn
+
+class MplCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas, self).__init__(fig)
 
 
 class Window(QWidget):
@@ -33,9 +45,20 @@ class Window(QWidget):
             "symmKey": 0,
             "publicKey": 0,
             "privateKey": 0,
-            "bins": [477932, 427714, 431417, 458450, 475791, 477714, 477964, 479087, 419540, 426101, 428905,
-                     428906, 458411, 458443, 415482]
+
+
+            "pathToFolder": "Empty",
+            "lastNum": "7819",
+            "cardNum": 0,
+            "stats": {},
+            "defaultHash": "f56ab81d14e7c55304dff878c3f61f2d96c8ef1f56aff163320e67df",
+            "bins": ["477932", "427714", "431417", "458450", "475791", "477714", "477964", "479087", "419540", "426101", "428905",
+                     "428906", "458411", "458443", "415482"]
         }
+
+        self.pbar = QProgressBar(self)
+        self.graph = MplCanvas(self, width=11, height=10, dpi=100)
+
         self.setWindowTitle('Lab4')
         self.setWindowIcon(QIcon('6112_Logo_git_prefinal.jpg'))
         layout = QVBoxLayout()
@@ -61,7 +84,6 @@ class Window(QWidget):
         text = QVBoxLayout()
         line1 = QLabel("Hello there!")
         line1.setFont(custom_font)
-
         custom_font.setPixelSize(20)
         line2 = QLabel('''At CardNumber you can word with
                         \nAt additional tab you can:\n - 1: Create histogram\n - 2: Check your card number with Lunh's algorithm''')
@@ -81,33 +103,39 @@ class Window(QWidget):
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setLineWidth(2)
-        line1 = QHBoxLayout()
-
+        layoutPath = QHBoxLayout()
         binlayout1 = QVBoxLayout()
         binlayout2 = QVBoxLayout()
         binlayout = QHBoxLayout()
         binlayout1.setSpacing(0)
         binlayout.setSpacing(0)
         binlayout.setContentsMargins(10, 10, 10, 100)
-
         for i in range(0, int(len(self.settings['bins'])/2)):
             binlayout1.addWidget(
                 QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
-        for i in int(len(self.settings['bins'])/2, len(self.settings['bins'])):
+        for i in range(int(len(self.settings['bins'])/2), len((self.settings['bins']))):
             binlayout2.addWidget(
                 QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
         binlayout.addLayout(binlayout1)
         binlayout.addLayout(binlayout2)
-        button11 = QPushButton("Path for encrypted key")
-        line11 = QLabel(self.settings['pathOfEncryptedSymmKeyToSave'])
+        button = QPushButton("Path")
+        line11 = QLabel(self.settings['pathToFolder'])
         line11.setStyleSheet("border: 3px solid red;")
-        line1.addWidget(button11)
-        line1.addWidget(line11)
-        # button11.clicked.connect(
-        #     partial(self.__input_path, self.settings, "pathOfEncryptedSymmKeyToSave", line11))
-
+        layoutPath.addWidget(button)
+        layoutPath.addWidget(line11)
+        button.clicked.connect(
+            partial(self.__input_path, self.settings, "pathToFolder", line11))
         first.addLayout(binlayout)
-        first.addLayout(line1)
+        first.addWidget(
+            QLabel(f"Last numbers of card: {self.settings['lastNum']}"))
+        first.addLayout(layoutPath)
+
+        buttonCalculate = QPushButton("Calculate")
+        buttonCalculate.setStyleSheet("background-color: red")
+        buttonCalculate.clicked.connect(
+            partial(self.calculate_num_card, buttonCalculate))
+        second.addWidget(buttonCalculate)
+        second.addWidget(self.pbar)
         layout.addLayout(first)
         layout.addWidget(separator)
         layout.addLayout(second)
@@ -115,60 +143,26 @@ class Window(QWidget):
         return generalTab
 
     def __additional(self) -> QWidget:
-        """create tab with buttons to get pathes and solve encryption of symm key and encryption of data"""
+        """tab with additional function such as draw hish and check card"""
         generalTab = QWidget()
         layout = QVBoxLayout()
-
         first = QVBoxLayout()
-        first.setContentsMargins(10, 10, 10, 200)
+        first.addWidget(self.graph)
+        cardStatusLable = QLabel("None")
+        first.addWidget(cardStatusLable)
         second = QHBoxLayout()
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setLineWidth(2)
-        line1 = QHBoxLayout()
-        button11 = QPushButton("Path of data")
-        line11 = QLabel(self.settings["pathOfDataToGet"])
-        line11.setStyleSheet("border: 3px solid red;")
-        line1.addWidget(button11)
-        line1.addWidget(line11)
-        button11.clicked.connect(
-            partial(self.__input_file, self.settings, "pathOfDataToGet", line11, '.txt'))
-        line2 = QHBoxLayout()
-        button22 = QPushButton("Path of private key")
-        line22 = QLabel(self.settings["pathOfPrivateKeyToGet1"])
-        line22.setStyleSheet("border: 3px solid red")
-        line2.addWidget(button22)
-        line2.addWidget(line22)
-        button22.clicked.connect(
-            partial(self.__input_file, self.settings, "pathOfPrivateKeyToGet1", line22, '.pem'))
-        line3 = QHBoxLayout()
-        button33 = QPushButton("Path of encrypted key")
-        line33 = QLabel(self.settings["pathOfEnctyptedSymmKeyToGet1"])
-        line33.setStyleSheet("border: 3px solid red;")
-        line3.addWidget(button33)
-        line3.addWidget(line33)
-        button33.clicked.connect(
-            partial(self.__input_file, self.settings, "pathOfEnctyptedSymmKeyToGet1", line33, '.bin'))
-        line4 = QHBoxLayout()
-        button44 = QPushButton("Path for encrypted data")
-        line44 = QLabel(self.settings["pathOfEncryptedDataToSave"])
-        line44.setStyleSheet("border: 3px solid red;")
-        line4.addWidget(button44)
-        line4.addWidget(line44)
-        button44.clicked.connect(
-            partial(self.__input_path, self.settings, "pathOfEncryptedDataToSave", line44))
-        first.addLayout(line1)
-        first.addLayout(line2)
-        first.addLayout(line3)
-        first.addLayout(line4)
-        button1 = QPushButton("decrypt key")
+        button1 = QPushButton("Create histogram")
         button1.setStyleSheet("background-color: red")
-        # button1.clicked.connect(partial(self.__load_and_decrypt_symmKey,
-        #                         "pathOfEnctyptedSymmKeyToGet1", "pathOfPrivateKeyToGet1", self.settings, button1))
-        # button2 = QPushButton("encrypt data and save")
-        # button2.clicked.connect(partial(self.__encrypt_data, "pathOfEncryptedDataToSave",
-        #                         "pathOfDataToGet", "symmKey", self.settings, button2))
         second.addWidget(button1)
+        button1.clicked.connect(partial(self.create_graph, button1))
+        button2 = QPushButton("Check card")
+        button2.setStyleSheet("background-color: red")
+        button2.clicked.connect(
+            partial(self.card_num_verification, cardStatusLable, button2))
+        second.addWidget(button2)
         layout.addLayout(first)
         layout.addWidget(separator)
         layout.addLayout(second)
@@ -178,6 +172,8 @@ class Window(QWidget):
     def __input_path(self, settings: tuple, key: str, lable: QLabel) -> None:
         """service function"""
         settings[key] = QFileDialog.getExistingDirectory(self, 'Select Folder')
+        if (settings[key] == ''):
+            return
         if not settings[key]:
             QMessageBox.critical(
                 self, "Error", "please select dir", QMessageBox.Ok)
@@ -198,7 +194,61 @@ class Window(QWidget):
             lable.setText(settings[key])
             lable.setStyleSheet("border: 3px solid green;")
 
+    def calculate_num_card(self, button: QPushButton):
+        """the method launches a function to find 
+        the card number for different pools"""
+        # if (self.settings['pathToFolder'] != 'Empty' and self.settings['cardNum'] == 0) or (self.settings['pathToFolder'] != '' and self.settings['cardNum'] == 0):
+        if (not (self.settings['pathToFolder'] == 'Empty' or self.settings['pathToFolder'] == '') and self.settings['cardNum'] == 0):
+            pools = mp.cpu_count()
+            result = 0
+            self.pbar.reset()
+            for i in range(1, pools + 1):
+                self.pbar.setValue(int(i/(pools)*100))
+                start_time = time.time()
+                result = find_num_card(
+                    self.settings['defaultHash'],
+                    self.settings['bins'],
+                    self.settings['lastNum'], pools)
+                final_time = time.time() - start_time
+                self.settings['stats'][i] = final_time
+            self.settings['card_num'] = result
+            # for i in range(0, 101):
+            #     time.sleep(0.01)
+            button.setStyleSheet("background-color: green;")
+            return
+        elif self.settings['pathToFolder'] == 'Empty' or self.settings['pathToFolder'] == '':
+            QMessageBox.critical(
+                self, "Error", "Please select folder", QMessageBox.Ok)
+            return
+        elif self.settings['cardNum'] != 0:
+            QMessageBox.critical(
+                self, "Error", "You have already done calculation", QMessageBox.Ok)
+            return
 
+
+    def create_graph(self, button: QPushButton):
+        """the method create the histogram"""
+        if (self.settings['stats']):
+
+            self.graph.axes.cla()
+            self.graph.axes.bar(self.settings['stats'].keys(), self.settings['stats'].values())
+            button.setStyleSheet("background-color: green;")
+            self.graph.draw()
+        else:
+            QMessageBox.critical(
+                self, "Error", "Please finish previous step", QMessageBox.Ok)
+
+
+    def card_num_verification(self, lable: QLabel, button: QPushButton):
+        """the method calls the function of the luhn algorithm"""
+        if(self.settings['cardNum']):
+            result_algorithm = algorithm_luhn(str(self.settings["cardNum"]))
+            lable.setText(f"Algorithm Luhn return - {result_algorithm}")
+            button.setStyleSheet("background-color: green;")
+        else:
+            QMessageBox.critical(
+                self, "Error", "Please finish previous step", QMessageBox.Ok)
+            
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = Window()
