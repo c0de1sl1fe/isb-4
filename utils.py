@@ -27,7 +27,6 @@ def check_num_card(default_hash: str, bin: int, main_part_card: list, last_num: 
 def find_num_card(default_hash: str, bins: list, last_num: str, pool: int) -> int:
     """the function creates card numbers and searches
     for the desired one by a given hash"""
-    print(1)
     list_num = range(1000000)
     arg = []
     for bin in bins:
