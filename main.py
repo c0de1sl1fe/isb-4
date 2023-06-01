@@ -33,16 +33,23 @@ class Window(QWidget):
         self.shortcut_exit = QShortcut(QKeySequence('esc'), self)
         self.shortcut_exit.activated.connect(qApp.quit)
         self.settings = {
-            "isOld": True,
             "pathToFolder": "Empty",
-            "lastNum": "7819",
+            "lastNum": "",
             "cardNum": 0,
             "stats": {},
-            "defaultHash": "f56ab81d14e7c55304dff878c3f61f2d96c8ef1f56aff163320e67df",
-            "bins": ["477932", "427714", "431417", "458450", "475791", "477714", "477964", "479087", "419540", "426101", "428905",
-                     "428906", "458411", "458443", "415482"]
+            "luhn": "",
+            "defaultHash": "",
+            "bins": []
+            # "lastNum": "7819",
+            # "cardNum": 0,
+            # "stats": {},
+            # "luhn": "Empty",
+            # "defaultHash": "f56ab81d14e7c55304dff878c3f61f2d96c8ef1f56aff163320e67df",
+            # "bins": ["477932", "427714", "431417", "458450", "475791", "477714", "477964", "479087", "419540", "426101", "428905",
+            #          "428906", "458411", "458443", "415482"]
         }
-
+        self.isOldFlag = False
+        self.isLoaded = False
         self.pbar = QProgressBar(self)
         self.graph = MplCanvas(self, width=11, height=10, dpi=100)
 
@@ -75,11 +82,12 @@ class Window(QWidget):
                         \nAt additional tab you can:\n - 1: Create histogram\n - 2: Check your card number with Lunh's algorithm''')
         line2.setFont(custom_font)
         buttonToSaveSettings = QPushButton("SaveSettings")
-        buttonToSaveSettings.clicked.connect()
-
+        buttonToSaveSettings.clicked.connect(partial(self.__settings, buttonToSaveSettings))
+        
         text.addWidget(line1)
         text.addWidget(line2)
         layout.addLayout(text)
+        layout.addWidget(buttonToSaveSettings)
         generalTab.setLayout(layout)
         return generalTab
 
@@ -188,7 +196,7 @@ class Window(QWidget):
     def calculate_num_card(self, lable: QLabel, button: QPushButton):
         """the method launches a function to find 
         the card number for different pools"""
-        if (not (self.settings['pathToFolder'] == 'Empty' or self.settings['pathToFolder'] == '') and self.settings['cardNum'] == 0):
+        if (self.isOldFlag and self.isLoaded):
             pools = mp.cpu_count()
             result = 0
             self.pbar.reset()
@@ -204,19 +212,20 @@ class Window(QWidget):
             self.settings['cardNum'] = result
             lable.setText(str(self.settings['cardNum']))
             button.setStyleSheet("background-color: green;")
+            self.isOldFlag = False
             return
-        elif self.settings['pathToFolder'] == 'Empty' or self.settings['pathToFolder'] == '':
-            QMessageBox.critical(
-                self, "Error", "Please select folder", QMessageBox.Ok)
-            return
-        elif self.settings['cardNum'] != 0:
+        elif(not self.isOldFlag):
             QMessageBox.critical(
                 self, "Error", "You have already done calculation", QMessageBox.Ok)
+            return
+        else:
+            QMessageBox.critical(
+                self, "Error", "Please load data", QMessageBox.Ok)
             return
 
     def create_graph(self, button: QPushButton):
         """the method create the histogram"""
-        if (self.settings['stats']):
+        if (not self.isOldFlag and self.settings['stats']):
 
             self.graph.axes.cla()
             self.graph.axes.bar(
@@ -229,26 +238,39 @@ class Window(QWidget):
 
     def card_num_verification(self, lable: QLabel, button: QPushButton):
         """the method calls the function of the luhn algorithm"""
-        if (self.settings['cardNum']):
+        if (self.settings['cardNum'] and not self.isOldFlag):
             result_algorithm = algorithm_luhn(str(self.settings["cardNum"]))
             lable.setText(f"Algorithm Luhn return - {result_algorithm}")
+            self.settings['luhn'] = f"Algorithm Luhn return - {result_algorithm}"
             button.setStyleSheet("background-color: green;")
+        elif(not self.isOldFlag):
+            QMessageBox.critical(
+                self, "Error", "You have already done it", QMessageBox.Ok)
         else:
             QMessageBox.critical(
                 self, "Error", "Please finish previous step", QMessageBox.Ok)
 
     def __settings(self, button: QPushButton):
-        if(self.settings['isOld']):
-            button.setText("saveSettings")
-            try:
-                with open('settings.json', 'r') as f:
-                    self.settings = json.load(f)
-                self.settings['isOld'] = True
-            except Exception as e:
-                logging.error(
-            f"an error occurred when reading data to 'settings.json' file: {str(e)}")
-            
-        if()
+        if(self.settings['pathToFolder'] != "Empty" and self.settings['pathToFolder' != ""]):
+            if (not self.isLoaded):
+                button.setText("saveSettings")
+                try:
+                    with open('settings.json', 'r') as f:
+                        self.settings = json.load(f)
+                    self.isOldFlag = True
+                    self.isLoaded = True
+                except Exception as e:
+                    logging.error(
+                        f"an error occurred when reading data to 'settings.json' file: {str(e)}")
+            else:
+                try:
+                    with open('settings.json', 'w') as f:
+                        json.dump(self.settings, f)
+                except Exception as e:
+                    logging.error(
+                        f"an error occurred when reading data to 'settings.json' file: {str(e)}")
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = Window()
