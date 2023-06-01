@@ -98,7 +98,6 @@ class Window(QWidget):
         separator.setFrameShape(QFrame.HLine)
         separator.setLineWidth(2)
         layoutPath = QHBoxLayout()
-
         button = QPushButton("Path")
         line11 = QLabel(self.settings['pathToFolder'])
         line11.setStyleSheet("border: 3px solid red;")
@@ -231,7 +230,6 @@ class Window(QWidget):
                     button.setText("Save settings")
                     binlayout1 = QVBoxLayout()
                     binlayout2 = QVBoxLayout()
-                
                     binlayout1.setSpacing(0)
                     self.binlayout.setSpacing(0)
                     self.binlayout.setContentsMargins(10, 10, 10, 100)
