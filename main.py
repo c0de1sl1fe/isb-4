@@ -18,8 +18,8 @@ from utils import find_num_card, algorithm_luhn
 
 
 class MplCanvas(FigureCanvasQTAgg):
-
     def __init__(self, parent=None, width=5, height=4, dpi=100):
+        """constructor for hist in main window"""
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
@@ -43,18 +43,12 @@ class Window(QWidget):
             "luhn": "",
             "defaultHash": "",
             "bins": []
-            # "lastNum": "7819",
-            # "cardNum": 0,
-            # "stats": {},
-            # "luhn": "Empty",
-            # "defaultHash": "f56ab81d14e7c55304dff878c3f61f2d96c8ef1f56aff163320e67df",
-            # "bins": ["477932", "427714", "431417", "458450", "475791", "477714", "477964", "479087", "419540", "426101", "428905",
-            #          "428906", "458411", "458443", "415482"]
         }
         self.isOldFlag = False
         self.isLoaded = False
         self.pbar = QProgressBar(self)
         self.graph = MplCanvas(self, width=11, height=10, dpi=100)
+        self.binlayout = QHBoxLayout()
 
         self.setWindowTitle('Lab4')
         self.setWindowIcon(QIcon('6112_Logo_git_prefinal.jpg'))
@@ -87,7 +81,6 @@ class Window(QWidget):
         buttonToSaveSettings = QPushButton("Load settings")
         buttonToSaveSettings.clicked.connect(
             partial(self.__settings, buttonToSaveSettings))
-
         text.addWidget(line1)
         text.addWidget(line2)
         layout.addLayout(text)
@@ -105,20 +98,7 @@ class Window(QWidget):
         separator.setFrameShape(QFrame.HLine)
         separator.setLineWidth(2)
         layoutPath = QHBoxLayout()
-        binlayout1 = QVBoxLayout()
-        binlayout2 = QVBoxLayout()
-        binlayout = QHBoxLayout()
-        binlayout1.setSpacing(0)
-        binlayout.setSpacing(0)
-        binlayout.setContentsMargins(10, 10, 10, 100)
-        for i in range(0, int(len(self.settings['bins'])/2)):
-            binlayout1.addWidget(
-                QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
-        for i in range(int(len(self.settings['bins'])/2), len((self.settings['bins']))):
-            binlayout2.addWidget(
-                QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
-        binlayout.addLayout(binlayout1)
-        binlayout.addLayout(binlayout2)
+
         button = QPushButton("Path")
         line11 = QLabel(self.settings['pathToFolder'])
         line11.setStyleSheet("border: 3px solid red;")
@@ -126,13 +106,12 @@ class Window(QWidget):
         layoutPath.addWidget(line11)
         button.clicked.connect(
             partial(self.__input_path, self.settings, "pathToFolder", line11))
-        first.addLayout(binlayout)
+        first.addLayout(self.binlayout)
         first.addWidget(
             QLabel(f"Last numbers of card: {self.settings['lastNum']}"))
         cardNumLable = QLabel("Card number: ")
         first.addWidget(cardNumLable)
         first.addLayout(layoutPath)
-
         buttonCalculate = QPushButton("Calculate")
         buttonCalculate.setStyleSheet("background-color: red")
         buttonCalculate.clicked.connect(
@@ -180,7 +159,6 @@ class Window(QWidget):
         if not settings[key]:
             QMessageBox.critical(
                 self, "Error", "please select dir", QMessageBox.Ok)
-
         else:
             lable.setText(settings[key])
             lable.setStyleSheet("border: 3px solid green;")
@@ -197,9 +175,7 @@ class Window(QWidget):
                 self.pbar.setValue(int(i/(pools)*100))
                 start_time = time.time()
                 result = find_num_card(
-                    self.settings['defaultHash'],
-                    self.settings['bins'],
-                    self.settings['lastNum'], pools)
+                    self.settings['defaultHash'], self.settings['bins'], self.settings['lastNum'], pools)
                 final_time = time.time() - start_time
                 self.settings['stats'][i] = final_time
             self.settings['cardNum'] = result
@@ -218,11 +194,8 @@ class Window(QWidget):
 
     def create_graph(self, button: QPushButton):
         """the method create the histogram"""
-        # if (not self.isOldFlag and self.settings['stats']):
-        if (self.settings['stats']):
-            print(self.settings['stats'])
+        if (not self.isOldFlag and self.settings['stats']):
             self.graph.axes.cla()
-
             self.graph.axes.bar(
                 self.settings['stats'].keys(), self.settings['stats'].values())
             button.setStyleSheet("background-color: green;")
@@ -256,6 +229,20 @@ class Window(QWidget):
                     self.isOldFlag = True
                     self.isLoaded = True
                     button.setText("Save settings")
+                    binlayout1 = QVBoxLayout()
+                    binlayout2 = QVBoxLayout()
+                
+                    binlayout1.setSpacing(0)
+                    self.binlayout.setSpacing(0)
+                    self.binlayout.setContentsMargins(10, 10, 10, 100)
+                    for i in range(0, int(len(self.settings['bins'])/2)):
+                        binlayout1.addWidget(
+                            QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
+                    for i in range(int(len(self.settings['bins'])/2), len((self.settings['bins']))):
+                        binlayout2.addWidget(
+                            QLabel(f"{i + 1}. {self.settings['bins'][i]}\n"))
+                    self.binlayout.addLayout(binlayout1)
+                    self.binlayout.addLayout(binlayout2)
                 except Exception as e:
                     logging.error(
                         f"an error occurred when reading data to 'settings.json' file: {str(e)}")
