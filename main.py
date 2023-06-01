@@ -1,6 +1,10 @@
 import sys
-from functools import partial
 import time
+import json
+import logging
+import os
+
+from functools import partial
 from PyQt5.QtWidgets import (QFrame, QShortcut, QWidget, QLabel,  QPushButton,
                              QApplication, QHBoxLayout,
                              QFileDialog, qApp, QDesktopWidget, QMessageBox,
@@ -9,8 +13,7 @@ from PyQt5.QtGui import QIcon,  QFont, QKeySequence
 import multiprocessing as mp
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-import json
-import logging
+
 from utils import find_num_card, algorithm_luhn
 
 
@@ -81,9 +84,10 @@ class Window(QWidget):
         line2 = QLabel('''At CardNumber you can word with
                         \nAt additional tab you can:\n - 1: Create histogram\n - 2: Check your card number with Lunh's algorithm''')
         line2.setFont(custom_font)
-        buttonToSaveSettings = QPushButton("SaveSettings")
-        buttonToSaveSettings.clicked.connect(partial(self.__settings, buttonToSaveSettings))
-        
+        buttonToSaveSettings = QPushButton("Load settings")
+        buttonToSaveSettings.clicked.connect(
+            partial(self.__settings, buttonToSaveSettings))
+
         text.addWidget(line1)
         text.addWidget(line2)
         layout.addLayout(text)
@@ -125,7 +129,7 @@ class Window(QWidget):
         first.addLayout(binlayout)
         first.addWidget(
             QLabel(f"Last numbers of card: {self.settings['lastNum']}"))
-        cardNumLable = QLabel("")
+        cardNumLable = QLabel("Card number: ")
         first.addWidget(cardNumLable)
         first.addLayout(layoutPath)
 
@@ -181,18 +185,6 @@ class Window(QWidget):
             lable.setText(settings[key])
             lable.setStyleSheet("border: 3px solid green;")
 
-    def __input_file(self, settings: tuple, key: str,  lable: QLabel, typeCheck: str) -> None:
-        """service function"""
-        settings[key] = QFileDialog.getOpenFileName(self, 'Select Folder')[0]
-        if (settings[key] == ''):
-            return
-        if not typeCheck in settings[key] and settings[key] != '':
-            QMessageBox.critical(
-                self, "Error", f"select correct file type - {typeCheck}", QMessageBox.Ok)
-        else:
-            lable.setText(settings[key])
-            lable.setStyleSheet("border: 3px solid green;")
-
     def calculate_num_card(self, lable: QLabel, button: QPushButton):
         """the method launches a function to find 
         the card number for different pools"""
@@ -200,6 +192,7 @@ class Window(QWidget):
             pools = mp.cpu_count()
             result = 0
             self.pbar.reset()
+            self.settings['stats'].clear()
             for i in range(1, pools + 1):
                 self.pbar.setValue(int(i/(pools)*100))
                 start_time = time.time()
@@ -210,11 +203,11 @@ class Window(QWidget):
                 final_time = time.time() - start_time
                 self.settings['stats'][i] = final_time
             self.settings['cardNum'] = result
-            lable.setText(str(self.settings['cardNum']))
+            lable.setText(f"Card number: {str(self.settings['cardNum'])}")
             button.setStyleSheet("background-color: green;")
             self.isOldFlag = False
             return
-        elif(not self.isOldFlag):
+        elif (not self.isOldFlag):
             QMessageBox.critical(
                 self, "Error", "You have already done calculation", QMessageBox.Ok)
             return
@@ -225,9 +218,11 @@ class Window(QWidget):
 
     def create_graph(self, button: QPushButton):
         """the method create the histogram"""
-        if (not self.isOldFlag and self.settings['stats']):
-
+        # if (not self.isOldFlag and self.settings['stats']):
+        if (self.settings['stats']):
+            print(self.settings['stats'])
             self.graph.axes.cla()
+
             self.graph.axes.bar(
                 self.settings['stats'].keys(), self.settings['stats'].values())
             button.setStyleSheet("background-color: green;")
@@ -243,7 +238,7 @@ class Window(QWidget):
             lable.setText(f"Algorithm Luhn return - {result_algorithm}")
             self.settings['luhn'] = f"Algorithm Luhn return - {result_algorithm}"
             button.setStyleSheet("background-color: green;")
-        elif(not self.isOldFlag):
+        elif (not self.isOldFlag):
             QMessageBox.critical(
                 self, "Error", "You have already done it", QMessageBox.Ok)
         else:
@@ -251,27 +246,34 @@ class Window(QWidget):
                 self, "Error", "Please finish previous step", QMessageBox.Ok)
 
     def __settings(self, button: QPushButton):
-        if(self.settings['pathToFolder'] != "Empty" and self.settings['pathToFolder' != ""]):
+        """Function to save and load dictionary"""
+        if (self.settings['pathToFolder'] != "Empty" and self.settings['pathToFolder'] != ""):
+            name = os.path.join(self.settings['pathToFolder'], "settings.json")
             if (not self.isLoaded):
-                button.setText("saveSettings")
                 try:
-                    with open('settings.json', 'r') as f:
+                    with open(name, 'r') as f:
                         self.settings = json.load(f)
                     self.isOldFlag = True
                     self.isLoaded = True
+                    button.setText("Save settings")
                 except Exception as e:
                     logging.error(
                         f"an error occurred when reading data to 'settings.json' file: {str(e)}")
             else:
                 try:
-                    with open('settings.json', 'w') as f:
+                    with open(name, 'w') as f:
                         json.dump(self.settings, f)
+                    button.setStyleSheet("background-color: green;")
                 except Exception as e:
                     logging.error(
                         f"an error occurred when reading data to 'settings.json' file: {str(e)}")
+        else:
+            QMessageBox.critical(
+                self, "Error", "Please choose folder where to save or load", QMessageBox.Ok)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, filename="py_log.log")
     app = QApplication(sys.argv)
     ex = Window()
     sys.exit(app.exec_())
